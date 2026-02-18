@@ -23,15 +23,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          # 1. Varredura de arquivos
           FILES=$(ls images/*.jpg 2>/dev/null || echo "")
           
           if [ -z "$FILES" ]; then
-            echo "[!] Nenhuma imagem encontrada. Abortando."
             exit 0
           fi
 
-          # 2. Construção do Payload JSON
           JSON="["
           for f in $FILES; do
             TITLE=$(basename "$f" .jpg)
@@ -40,6 +37,4 @@ jobs:
           done
           JSON="${JSON%,}]"
 
-          # 3. Injeção direta via Wrangler CLI
-          echo "[*] Enviando JSON para Cloudflare..."
           npx wrangler kv:key put --binding=MUSEU_DB "catalogo" "$JSON"
