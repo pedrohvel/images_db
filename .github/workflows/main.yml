@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
       
       - env:
@@ -18,10 +17,7 @@ jobs:
           KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
         run: |
           FILES=$(ls images/*.jpg 2>/dev/null || echo "")
-          
-          if [ -z "$FILES" ]; then
-            exit 0
-          fi
+          if [ -z "$FILES" ]; then exit 0; fi
 
           JSON="["
           for f in $FILES; do
