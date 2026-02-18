@@ -16,7 +16,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
         run: |
-          FILES=$(ls images/*.jpg 2>/dev/null || echo "")
+          # 1. Varredura Multimídia (Imagens, Vídeos, GIFs e Áudio)
+          FILES=$(ls images/* 2>/dev/null | grep -E '\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|ogg)$' || echo "")
           
           if [ -z "$FILES" ]; then
             exit 0
@@ -24,10 +25,22 @@ jobs:
 
           JSON="["
           for f in $FILES; do
-            TITLE=$(basename "$f" .jpg)
+            # 2. Limpeza de Título (Remove extensão e ajusta espaços)
+            RAW_TITLE=$(basename "$f" | sed 's/\.[^.]*$//' | tr '_-' ' ')
+            TITLE="$(echo ${RAW_TITLE:0:1} | tr '[:lower:]' '[:upper:]')${RAW_TITLE:1}"
+            
+            # 3. Identificação de Tipo
+            case "$f" in
+              *.mp4|*.webm) TYPE="video" ;;
+              *.mp3|*.wav|*.ogg) TYPE="audio" ;;
+              *) TYPE="image" ;;
+            esac
+
             URL="https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/$f"
-            JSON+="{\"title\": \"$TITLE\", \"src\": \"$URL\"},"
+            
+            JSON+="{\"title\": \"$TITLE\", \"src\": \"$URL\", \"type\": \"$TYPE\"},"
           done
           JSON="${JSON%,}]"
 
+          # 4. Injeção Remota
           npx wrangler kv key put --namespace-id=$KV_ID "catalogo" "$JSON" --remote
