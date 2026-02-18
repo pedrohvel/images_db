@@ -1,0 +1,47 @@
+name: Sync to Cloudflare KV
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'images/**' # Só dispara se houver alteração nas imagens
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build JSON and Update KV
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: |
+            # 1. Varredura e filtragem de arquivos
+            FILES=$(ls images/*.jpg 2>/dev/null || echo "")
+            
+            if [ -z "$FILES" ]; then
+              echo "Nenhuma imagem encontrada. Abortando."
+              exit 0
+            fi
+
+            # 2. Construção do Payload JSON
+            JSON="["
+            for f in $FILES; do
+              # Extrai o nome sem extensão para o título
+              TITLE=$(basename "$f" .jpg)
+              # Gera o link da CDN jsDelivr (Alta Performance)
+              URL="https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/$f"
+              
+              JSON+="{\"title\": \"$TITLE\", \"desc\": \"Obra Processada via IA\", \"src\": \"$URL\"},"
+            done
+            
+            # 3. Formatação final (Remove a última vírgula e fecha o array)
+            JSON="${JSON%,}]"
+            
+            # 4. Injeção Atômica no KV
+            # --binding: nome definido no seu Worker
+            # "catalogo": a chave que o Worker vai ler
+            npx wrangler kv:key put --binding=MUSEU_DB "catalogo" "$JSON"
