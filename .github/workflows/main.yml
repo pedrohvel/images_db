@@ -8,25 +8,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Build JSON and Update KV
-        env:
+      - uses: actions/setup-node@v4
+      
+      - env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
         run: |
-          # 1. Coleta de arquivos
           FILES=$(ls images/*.jpg 2>/dev/null || echo "")
-          if [ -z "$FILES" ]; then exit 0; fi
+          
+          if [ -z "$FILES" ]; then
+            exit 0
+          fi
 
-          # 2. Montagem do JSON
           JSON="["
           for f in $FILES; do
             TITLE=$(basename "$f" .jpg)
@@ -35,5 +31,4 @@ jobs:
           done
           JSON="${JSON%,}]"
 
-          # 3. Injeção usando a sintaxe v4 (Espaços em vez de dois-pontos)
           npx wrangler kv key put --namespace-id=$KV_ID "catalogo" "$JSON"
