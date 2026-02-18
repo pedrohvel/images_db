@@ -17,7 +17,7 @@ jobs:
           KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
         run: |
           FILES=$(ls images/*.jpg 2>/dev/null || echo "")
-          if [ -z "$FILES" ]; then exit 0; fi
+          if [ -z "$FILES" ]; then exit 0; f i
 
           JSON="["
           for f in $FILES; do
@@ -27,4 +27,5 @@ jobs:
           done
           JSON="${JSON%,}]"
 
-          npx wrangler kv key put --namespace-id=$KV_ID "catalogo" "$JSON"
+          # Adição da flag --remote para persistência em nuvem
+          npx wrangler kv key put --namespace-id=$KV_ID "catalogo" "$JSON" --remote
