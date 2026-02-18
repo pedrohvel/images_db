@@ -3,8 +3,7 @@ name: Sync to Cloudflare KV
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'images/**'
+    # Removi o 'paths' para ele rodar SEMPRE que você der push
 
 jobs:
   deploy:
@@ -26,6 +25,7 @@ jobs:
           FILES=$(ls images/*.jpg 2>/dev/null || echo "")
           
           if [ -z "$FILES" ]; then
+            echo "Nenhuma imagem em images/. Encerrando."
             exit 0
           fi
 
@@ -37,4 +37,5 @@ jobs:
           done
           JSON="${JSON%,}]"
 
+          echo "Payload gerado: $JSON"
           npx wrangler kv:key put --binding=MUSEU_DB "catalogo" "$JSON"
