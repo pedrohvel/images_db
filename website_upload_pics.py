@@ -34,15 +34,31 @@ def optimize_images():
         # os.remove(img_path)
 
 def git_sync():
-    """Executa a sincronização com o GitHub images_db."""
+    """Executa a sincronização condicional baseada na detecção de mudanças."""
     try:
-        print("[*] Iniciando Git Push...")
+        # Captura o estado atual do repositório (vetor de mudanças)
+        status_proc = subprocess.run(
+            ["git", "status", "--porcelain"], 
+            capture_output=True, 
+            text=True, 
+            check=True
+        )
+        
+        # Se o stdout estiver vazio, não há o que processar
+        if not status_proc.stdout.strip():
+            print("[*] Entropia Zero: Repositório já está em estado de equilíbrio (Clean).")
+            return
+
+        print("[*] Mudanças detectadas. Iniciando propagação...")
         subprocess.run(["git", "add", "."], check=True)
-        subprocess.run(["git", "commit", "-m", "update: nova remessa de obras otimizadas"], check=True)
+        
+        # O commit agora só ocorre se houver arquivos no index
+        subprocess.run(["git", "commit", "-m", "update: obras otimizadas via pipeline"], check=True)
         subprocess.run(["git", "push", "origin", "main"], check=True)
-        print("[+] Esteira concluída com sucesso.")
+        print("[+] Sincronização concluída com sucesso.")
+        
     except subprocess.CalledProcessError as e:
-        print(f"[!] Falha no Git: {e}")
+        print(f"[!] Erro crítico na execução do Git: {e}")
 
 if __name__ == "__main__":
     optimize_images()
