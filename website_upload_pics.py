@@ -3,63 +3,67 @@ import subprocess
 from pathlib import Path
 from PIL import Image
 
+# DETERMINAÇÃO DO CONTEXTO (Garante que o script ache as pastas de qualquer lugar)
+BASE_DIR = Path(__file__).resolve().parent
+SOURCE_DIR = BASE_DIR / "staging"
+EXPORT_DIR = BASE_DIR / "images"
+
 # CONFIGURAÇÕES
-SOURCE_DIR = Path("./staging")    # Onde você coloca as imagens brutas
-EXPORT_DIR = Path("./images")     # Onde o Git monitora as imagens
-QUALITY = 85                      # Equilíbrio ótimo entre compressão e qualidade
-MAX_WIDTH = 1920                  # Limite para exibição web fluida
+QUALITY = 85
+MAX_WIDTH = 1920
 
 def optimize_images():
-    """Redimensiona e comprime imagens antes do envio."""
+    """Redimensiona e comprime imagens com suporte a múltiplas extensões."""
     if not EXPORT_DIR.exists():
         EXPORT_DIR.mkdir(parents=True)
 
-    for img_path in SOURCE_DIR.glob("*.[jp][pn][g]"): # Captura jpg, jpeg, png
+    # Captura jpg, jpeg, png (ignorando maiúsculas/minúsculas)
+    extensions = ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG")
+    files_found = []
+    for ext in extensions:
+        files_found.extend(SOURCE_DIR.glob(ext))
+
+    if not files_found:
+        print(f"[!] Aviso: Nenhuma imagem encontrada em {SOURCE_DIR}")
+        return False
+
+    for img_path in files_found:
         print(f"[*] Processando: {img_path.name}")
-        with Image.open(img_path) as img:
-            # Converte para RGB (necessário para salvar JPEG)
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-            
-            # Redimensionamento Proporcional
-            if img.width > MAX_WIDTH:
-                ratio = MAX_WIDTH / float(img.width)
-                new_height = int(float(img.height) * float(ratio))
-                img = img.resize((MAX_WIDTH, new_height), Image.LANCZOS)
-            
-            # Salva na pasta de exportação
-            img.save(EXPORT_DIR / f"{img_path.stem}.jpg", "JPEG", quality=QUALITY, optimize=True)
-        
-        # Opcional: Remove da pasta staging após processar
-        # os.remove(img_path)
+        try:
+            with Image.open(img_path) as img:
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                
+                if img.width > MAX_WIDTH:
+                    ratio = MAX_WIDTH / float(img.width)
+                    new_height = int(float(img.height) * float(ratio))
+                    img = img.resize((MAX_WIDTH, new_height), Image.LANCZOS)
+                
+                output_path = EXPORT_DIR / f"{img_path.stem}.jpg"
+                img.save(output_path, "JPEG", quality=QUALITY, optimize=True)
+                print(f"[V] Salvo em: {output_path}")
+        except Exception as e:
+            print(f"[!] Erro ao processar {img_path.name}: {e}")
+    return True
 
 def git_sync():
-    """Executa a sincronização condicional baseada na detecção de mudanças."""
+    """Sincroniza com o GitHub."""
+    os.chdir(BASE_DIR) # Garante que estamos dentro do repo para o Git funcionar
     try:
-        # Captura o estado atual do repositório (vetor de mudanças)
-        status_proc = subprocess.run(
-            ["git", "status", "--porcelain"], 
-            capture_output=True, 
-            text=True, 
-            check=True
-        )
+        status_proc = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
         
-        # Se o stdout estiver vazio, não há o que processar
         if not status_proc.stdout.strip():
-            print("[*] Entropia Zero: Repositório já está em estado de equilíbrio (Clean).")
+            print("[*] Entropia Zero: Nada para subir.")
             return
 
-        print("[*] Mudanças detectadas. Iniciando propagação...")
+        print("[*] Propagando alterações para o GitHub...")
         subprocess.run(["git", "add", "."], check=True)
-        
-        # O commit agora só ocorre se houver arquivos no index
-        subprocess.run(["git", "commit", "-m", "update: obras otimizadas via pipeline"], check=True)
+        subprocess.run(["git", "commit", "-m", "update: novas obras otimizadas"], check=True)
         subprocess.run(["git", "push", "origin", "main"], check=True)
-        print("[+] Sincronização concluída com sucesso.")
-        
+        print("[+] Sincronização concluída.")
     except subprocess.CalledProcessError as e:
-        print(f"[!] Erro crítico na execução do Git: {e}")
+        print(f"[!] Falha no Git: {e}")
 
 if __name__ == "__main__":
-    optimize_images()
-    git_sync()
+    if optimize_images():
+        git_sync()
