@@ -17,7 +17,7 @@ jobs:
           KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
         run: |
           # 1. Varredura Multimídia (Imagens, Vídeos, GIFs e Áudio)
-          FILES=$(ls images/* 2>/dev/null | grep -E '\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|ogg)$' || echo "")
+          FILES=$(ls images/* 2>/dev/null | grep -iE '\.(jpg|jpeg|png|gif|webp|mp4|mp3)$' || echo "")
           
           if [ -z "$FILES" ]; then
             exit 0
