@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'images/**' # Só dispara se houver alteração nas imagens
+      - 'images/**'
 
 jobs:
   deploy:
@@ -13,35 +13,33 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build JSON and Update KV
-        uses: cloudflare/wrangler-action@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: |
-            # 1. Varredura e filtragem de arquivos
-            FILES=$(ls images/*.jpg 2>/dev/null || echo "")
-            
-            if [ -z "$FILES" ]; then
-              echo "Nenhuma imagem encontrada. Abortando."
-              exit 0
-            fi
+          node-version: '20'
 
-            # 2. Construção do Payload JSON
-            JSON="["
-            for f in $FILES; do
-              # Extrai o nome sem extensão para o título
-              TITLE=$(basename "$f" .jpg)
-              # Gera o link da CDN jsDelivr (Alta Performance)
-              URL="https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/$f"
-              
-              JSON+="{\"title\": \"$TITLE\", \"desc\": \"Obra Processada via IA\", \"src\": \"$URL\"},"
-            done
-            
-            # 3. Formatação final (Remove a última vírgula e fecha o array)
-            JSON="${JSON%,}]"
-            
-            # 4. Injeção Atômica no KV
-            # --binding: nome definido no seu Worker
-            # "catalogo": a chave que o Worker vai ler
-            npx wrangler kv:key put --binding=MUSEU_DB "catalogo" "$JSON"
+      - name: Build JSON and Update KV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # 1. Varredura de arquivos
+          FILES=$(ls images/*.jpg 2>/dev/null || echo "")
+          
+          if [ -z "$FILES" ]; then
+            echo "Nenhuma imagem encontrada. Abortando."
+            exit 0
+          fi
+
+          # 2. Construção do Payload JSON
+          JSON="["
+          for f in $FILES; do
+            TITLE=$(basename "$f" .jpg)
+            URL="https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/$f"
+            JSON+="{\"title\": \"$TITLE\", \"src\": \"$URL\"},"
+          done
+          JSON="${JSON%,}]"
+
+          # 3. Injeção direta via Wrangler CLI
+          echo "Enviando JSON para Cloudflare..."
+          npx wrangler kv:key put --binding=MUSEU_DB "catalogo" "$JSON"
