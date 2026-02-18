@@ -27,7 +27,7 @@ jobs:
           FILES=$(ls images/*.jpg 2>/dev/null || echo "")
           
           if [ -z "$FILES" ]; then
-            echo "Nenhuma imagem encontrada. Abortando."
+            echo "[!] Nenhuma imagem encontrada. Abortando."
             exit 0
           fi
 
@@ -41,5 +41,5 @@ jobs:
           JSON="${JSON%,}]"
 
           # 3. Injeção direta via Wrangler CLI
-          echo "Enviando JSON para Cloudflare..."
+          echo "[*] Enviando JSON para Cloudflare..."
           npx wrangler kv:key put --binding=MUSEU_DB "catalogo" "$JSON"
